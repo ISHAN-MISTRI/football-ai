@@ -25,11 +25,17 @@ class TeamAssigner:
         device: str = "cuda",
         stride: int = 60,
         batch_size: int = 16,
+        siglip_model: str = "google/siglip-base-patch16-224",
+        umap_components: int = 3,
+        n_clusters: int = 2,
     ):
         self.detector = detector
         self.device = device
         self.stride = stride
         self.batch_size = batch_size
+        self.siglip_model = siglip_model
+        self.umap_components = umap_components
+        self.n_clusters = n_clusters
         self.classifier: Optional[TeamClassifier] = None
         self.track_teams: dict[int, int] = {}
 
@@ -48,7 +54,13 @@ class TeamAssigner:
         if len(crops) < 10:
             logger.warning("Few player crops — team colors may be unreliable")
 
-        self.classifier = TeamClassifier(device=self.device, batch_size=self.batch_size)
+        self.classifier = TeamClassifier(
+            device=self.device,
+            batch_size=self.batch_size,
+            umap_components=self.umap_components,
+            n_clusters=self.n_clusters,
+            siglip_model=self.siglip_model,
+        )
         self.classifier.fit(crops)
         clear_cuda_cache()
         logger.info(f"Team classifier fitted on {len(crops)} player crops")

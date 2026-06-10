@@ -71,13 +71,18 @@ with tab_process:
         st.warning("Upload a video in the Upload tab first.")
     else:
         st.write(f"**Source:** `{Path(st.session_state.video_path).name}`")
+        disable_team_classifier = st.checkbox(
+            "Disable player team classification (clustering)",
+            value=False,
+            help="If selected, all players will be detected and tracked with unique IDs but not divided into teams."
+        )
         progress_bar = st.progress(0.0)
         status = st.empty()
 
         def on_progress(stage: str, value: float):
             if stage == "team_fit":
                 status.text("Fitting team classifier (SigLIP + UMAP + KMeans)...")
-                progress_bar.progress(min(0.15, value / 1000))
+                progress_bar.progress(min(0.15, value))
             elif stage == "processing":
                 progress_bar.progress(0.15 + value * 0.85)
                 status.text(f"Processing frames... {value * 100:.1f}%")
@@ -93,6 +98,7 @@ with tab_process:
                     result = processor.process(
                         st.session_state.video_path,
                         output_dir=OUTPUTS_DIR,
+                        disable_team_classifier=disable_team_classifier,
                         progress_callback=on_progress,
                     )
                     st.session_state.result = result

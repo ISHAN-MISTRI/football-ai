@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 import supervision as sv
@@ -67,6 +68,9 @@ class VideoProcessor:
             device=self.device,
             stride=tc_cfg.get("stride", 60),
             batch_size=tc_cfg.get("batch_size", 16),
+            siglip_model=tc_cfg.get("siglip_model", "google/siglip-base-patch16-224"),
+            umap_components=tc_cfg.get("umap_components", 3),
+            n_clusters=tc_cfg.get("n_clusters", 2),
         )
 
         self.visualizer = FrameVisualizer(
@@ -80,6 +84,8 @@ class VideoProcessor:
         source_video: str | Path,
         output_dir: str | Path | None = None,
         max_frames: int | None = None,
+        disable_team_classifier: bool | None = None,
+        progress_callback: Callable[[str, float], None] | None = None,
     ) -> ProcessingResult:
         source = Path(source_video)
         out_root = Path(output_dir) if output_dir else resolve_path(self.config, "outputs_dir")
@@ -89,8 +95,19 @@ class VideoProcessor:
         output_video = out_root / f"tracked_{session_id}.mp4"
         csv_path = out_root / self.config["export"]["csv_filename"]
 
-        logger.info(f"Fitting team classifier on {source.name}")
-        self.team_assigner.fit(str(source))
+        is_enabled = self.config["team_classification"].get("enabled", True)
+        if disable_team_classifier is not None:
+            is_enabled = is_enabled and not disable_team_classifier
+
+        if is_enabled:
+            logger.info(f"Fitting team classifier on {source.name}")
+            if progress_callback:
+                progress_callback("team_fit", 0.0)
+            self.team_assigner.fit(str(source))
+            if progress_callback:
+                progress_callback("team_fit", 1.0)
+        else:
+            logger.info("Team classification is disabled. Skipping fitting.")
 
         video_info = sv.VideoInfo.from_video_path(str(source))
         total_frames = video_info.total_frames
@@ -118,6 +135,9 @@ class VideoProcessor:
                 if max_frames and frame_idx >= max_frames:
                     break
 
+                if progress_callback:
+                    progress_callback("processing", (frame_idx / total_frames) if total_frames > 0 else 0.0)
+
                 timestamp = frame_idx / video_info.fps
                 detections = self.detector.predict(frame)
                 detections = self.tracker.update(
@@ -129,7 +149,10 @@ class VideoProcessor:
                 referees = detections[detections.class_id == ref_id]
                 ball = detections[detections.class_id == ball_id]
 
-                team_ids = self.team_assigner.assign(frame, players, goalkeepers)
+                if is_enabled:
+                    team_ids = self.team_assigner.assign(frame, players, goalkeepers)
+                else:
+                    team_ids = np.array([])
 
                 annotated = self.visualizer.annotate(
                     frame, players, goalkeepers, referees, ball, team_ids, frame_idx,
@@ -147,6 +170,9 @@ class VideoProcessor:
                 if detections.tracker_id is not None:
                     stats["unique_track_ids"].update(int(t) for t in detections.tracker_id)
                 stats["frames_processed"] = frame_idx + 1
+
+        if progress_callback:
+            progress_callback("done", 1.0)
 
         stats["reid"] = self.tracker.get_stats()
         stats["unique_track_ids"] = len(stats["unique_track_ids"])

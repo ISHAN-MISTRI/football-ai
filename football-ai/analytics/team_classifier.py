@@ -33,11 +33,12 @@ class TeamClassifier:
         batch_size: int = 16,
         umap_components: int = 3,
         n_clusters: int = 2,
+        siglip_model: str = "google/siglip-base-patch16-224",
     ):
         self.device = device
         self.batch_size = batch_size
-        self.features_model = SiglipVisionModel.from_pretrained(SIGLIP_MODEL_PATH).to(device)
-        self.processor = AutoProcessor.from_pretrained(SIGLIP_MODEL_PATH)
+        self.features_model = SiglipVisionModel.from_pretrained(siglip_model).to(device)
+        self.processor = AutoProcessor.from_pretrained(siglip_model)
         self.reducer = umap.UMAP(n_components=umap_components)
         self.cluster_model = KMeans(n_clusters=n_clusters, random_state=42)
         self._fitted = False
