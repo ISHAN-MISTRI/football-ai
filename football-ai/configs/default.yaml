@@ -1,0 +1,73 @@
+# Football AI Video Analytics - Default Configuration
+
+project:
+  name: football-ai
+  version: 0.1.0
+
+paths:
+  detector_model: models/detector/best26x.pt
+  uploads_dir: uploads
+  outputs_dir: outputs
+  database_path: database/tracking.db
+
+detection:
+  imgsz: 1280  # matches training resolution (GTX 1650)
+  conf_threshold: 0.25
+  iou_threshold: 0.45
+  half_precision: true  # GTX 1650 optimization
+  class_names: ["ball", "player"]
+
+tracking:
+  tracker: bytetrack
+  minimum_consecutive_frames: 5
+  lost_track_buffer: 90  # frames to keep lost identities (~3.6s @ 25fps)
+
+reid:
+  enabled: true
+  model_name: osnet_x0_25
+  similarity_threshold: 0.65
+  update_interval: 3  # extract embedding every N frames
+  max_lost_identities: 50
+  embedding_ema_alpha: 0.85
+
+team_classification:
+  stride: 60  # subsample frames for fitting
+  siglip_model: google/siglip-base-patch16-224
+  batch_size: 16  # reduced for 4GB VRAM
+  umap_components: 3
+  n_clusters: 2
+
+ocr:
+  enabled: false  # Phase 3 — disabled for tracking MVP
+  interval: 5  # run OCR every N frames per track
+  min_confidence: 0.4
+  smoothing_window: 15
+  languages: ["en"]
+
+ball:
+  buffer_size: 20
+  trail_length: 10
+
+annotation:
+  colors:
+    team_a: "#00BFFF"
+    team_b: "#FF1493"
+    goalkeeper: "#FF6347"
+    referee: "#FFD700"
+    ball: "#FFFF00"
+  ellipse_thickness: 2
+  label_scale: 0.6
+
+export:
+  csv_filename: tracking_results.csv
+  video_codec: mp4v
+
+training:
+  base_model: yolo11m.pt
+  epochs: 50
+  batch: 8
+  imgsz: 1280
+  device: 0
+  amp: true
+  cache: true
+  workers: 4

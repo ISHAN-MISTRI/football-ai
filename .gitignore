@@ -1,0 +1,32 @@
+# Python-generated files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Custom application files
+football-ai/.env
+football-ai/outputs/*
+!football-ai/outputs/.gitkeep
+football-ai/uploads/*
+!football-ai/uploads/.gitkeep
+football-ai/database/*.db
+.DS_Store
+
+# YOLO weights (ignored due to size limits >100MB on GitHub)
+*.pt
+football-ai/models/detector/best26x.pt
+
+# Media and video files
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+
